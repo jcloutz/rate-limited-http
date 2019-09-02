@@ -14,11 +14,13 @@ const (
 	Low       Priority = 4
 )
 
+// qItem is an element within the queue
 type qItem struct {
 	task     *apiTask
 	priority Priority
 }
 
+// newQItem creates and returns a new qItem
 func newQItem(payload *apiTask, priority Priority) *qItem {
 	return &qItem{
 		task:     payload,
@@ -26,14 +28,19 @@ func newQItem(payload *apiTask, priority Priority) *qItem {
 	}
 }
 
+// Priority gets the priority of them
 func (n *qItem) Priority() Priority {
 	return n.priority
 }
 
+// Task returns the items assigned apiTask
 func (n *qItem) Task() *apiTask {
 	return n.task
 }
 
+// priorityQueue will process items based on their weighted priority. Weighted
+// priority is calculated based on the current queue size for a given priority
+// its priority weight value
 type priorityQueue struct {
 	nodeHeap         map[Priority][]*qItem
 	nextPriority     Priority

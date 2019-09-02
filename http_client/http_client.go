@@ -9,7 +9,8 @@ import (
 	"go.uber.org/ratelimit"
 )
 
-type RateLimitedHttpClient interface {
+// QueuedHttpClient will process http requests based on their provided priority
+type QueuedHttpClient interface {
 	Get(url string, priority Priority) (resp *http.Response, err error)
 	Head(url string, priority Priority) (resp *http.Response, err error)
 	Post(url, contentType string, body io.Reader, priority Priority) (resp *http.Response, err error)
@@ -29,7 +30,7 @@ type apiTaskResult struct {
 	Err    error
 }
 
-var _ RateLimitedHttpClient = &httpClient{}
+var _ QueuedHttpClient = &httpClient{}
 
 type httpClient struct {
 	client      *http.Client
@@ -82,56 +83,6 @@ func NewHttpClient(optionFunc ...func(options *HttpClientOptions)) *httpClient {
 	client.start()
 
 	return &client
-}
-
-func (h *httpClient) Get(url string, priority Priority) (resp *http.Response, err error) {
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return h.enqueue(req, priority)
-}
-
-func (h *httpClient) Head(url string, priority Priority) (resp *http.Response, err error) {
-	req, err := http.NewRequest("HEAD", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return h.enqueue(req, priority)
-}
-
-func (h *httpClient) Post(url, contentType string, body io.Reader, priority Priority) (resp *http.Response, err error) {
-	req, err := http.NewRequest("POST", url, body)
-	if err != nil {
-		return nil, err
-	}
-
-	req.Header.Set("Content-Type", contentType)
-	return h.enqueue(req, priority)
-}
-
-func (h *httpClient) Put(url, contentType string, body io.Reader, priority Priority) (resp *http.Response, err error) {
-	req, err := http.NewRequest("PUT", url, body)
-	if err != nil {
-		return nil, err
-	}
-
-	return h.enqueue(req, priority)
-}
-
-func (h *httpClient) Delete(url, contentType string, priority Priority) (resp *http.Response, err error) {
-	req, err := http.NewRequest("PUT", url, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	return h.enqueue(req, priority)
-}
-
-func (h *httpClient) Do(req *http.Request, priority Priority) (resp *http.Response, err error) {
-	return h.enqueue(req, priority)
 }
 
 // Start will start a go routine to watch the queue and dispatch jobs
@@ -198,4 +149,54 @@ func (h *httpClient) loadThunk(request *apiTask) func() (*http.Response, error) 
 
 		return res.Result, res.Err
 	}
+}
+
+func (h *httpClient) Get(url string, priority Priority) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.enqueue(req, priority)
+}
+
+func (h *httpClient) Head(url string, priority Priority) (resp *http.Response, err error) {
+	req, err := http.NewRequest("HEAD", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.enqueue(req, priority)
+}
+
+func (h *httpClient) Post(url, contentType string, body io.Reader, priority Priority) (resp *http.Response, err error) {
+	req, err := http.NewRequest("POST", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", contentType)
+	return h.enqueue(req, priority)
+}
+
+func (h *httpClient) Put(url, contentType string, body io.Reader, priority Priority) (resp *http.Response, err error) {
+	req, err := http.NewRequest("PUT", url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.enqueue(req, priority)
+}
+
+func (h *httpClient) Delete(url, contentType string, priority Priority) (resp *http.Response, err error) {
+	req, err := http.NewRequest("PUT", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return h.enqueue(req, priority)
+}
+
+func (h *httpClient) Do(req *http.Request, priority Priority) (resp *http.Response, err error) {
+	return h.enqueue(req, priority)
 }

@@ -9,10 +9,10 @@ import (
 )
 
 type ApiClient struct {
-	client http_client.RateLimitedHttpClient
+	client http_client.QueuedHttpClient
 }
 
-func NewApiClient(httpClient http_client.RateLimitedHttpClient) *ApiClient {
+func NewApiClient(httpClient http_client.QueuedHttpClient) *ApiClient {
 	return &ApiClient{client: httpClient}
 }
 
