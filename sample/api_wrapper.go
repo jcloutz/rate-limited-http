@@ -5,19 +5,19 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/jcloutz/rate-limited-http/http_client"
+	http_client "github.com/jcloutz/rate-limited-http"
 )
 
-type ApiClient struct {
+type PostApiWrapper struct {
 	client http_client.QueuedHttpClient
 }
 
-func NewApiClient(httpClient http_client.QueuedHttpClient) *ApiClient {
-	return &ApiClient{client: httpClient}
+func NewPostApiWrapper(httpClient http_client.QueuedHttpClient) *PostApiWrapper {
+	return &PostApiWrapper{client: httpClient}
 }
 
 // Fetch post will call jsonplaceholder and retrieve the specified post
-func (api *ApiClient) FetchPost(id int, priority http_client.Priority) (*Post, error) {
+func (api *PostApiWrapper) FetchPost(id int, priority http_client.Priority) (*Post, error) {
 	uri := fmt.Sprintf(`https://jsonplaceholder.typicode.com/posts/%d`, id)
 
 	fmt.Println(fmt.Sprintf(`Queuing post id=%d, priority=%d`, id, priority))
@@ -37,7 +37,7 @@ func (api *ApiClient) FetchPost(id int, priority http_client.Priority) (*Post, e
 	return &post, nil
 }
 
-func (api *ApiClient) CreatePost(title string, body string, priority http_client.Priority) (*Post, error) {
+func (api *PostApiWrapper) CreatePost(title string, body string, priority http_client.Priority) (*Post, error) {
 	uri := `https://jsonplaceholder.typicode.com/posts`
 
 	fmt.Println(fmt.Sprintf(`Queuing create post title=%s, priority=%d`, title, priority))
@@ -57,7 +57,7 @@ func (api *ApiClient) CreatePost(title string, body string, priority http_client
 	return &post, nil
 }
 
-func (api *ApiClient) UpdatePost(id int, title string, body string, priority http_client.Priority) (*Post, error) {
+func (api *PostApiWrapper) UpdatePost(id int, title string, body string, priority http_client.Priority) (*Post, error) {
 	uri := fmt.Sprintf(`https://jsonplaceholder.typicode.com/posts/%d`, id)
 
 	fmt.Println(fmt.Sprintf(`Queuing update post id=%d, priority=%d`, id, priority))
@@ -77,7 +77,7 @@ func (api *ApiClient) UpdatePost(id int, title string, body string, priority htt
 	return &post, nil
 }
 
-func (api *ApiClient) DeletePost(id int, priority http_client.Priority) (*Post, error) {
+func (api *PostApiWrapper) DeletePost(id int, priority http_client.Priority) (*Post, error) {
 	uri := fmt.Sprintf(`https://jsonplaceholder.typicode.com/posts/%d`, id)
 
 	fmt.Println(fmt.Sprintf(`Queuing delete post id=%d, priority=%d`, id, priority))

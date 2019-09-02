@@ -10,7 +10,7 @@ import (
 
 	"go.uber.org/ratelimit"
 
-	"github.com/jcloutz/rate-limited-http/http_client"
+	http_client "github.com/jcloutz/rate-limited-http"
 )
 
 func main() {
@@ -19,17 +19,16 @@ func main() {
 
 	// Create httpClient
 	httpClient := http_client.NewHttpClient(func(opts *http_client.HttpClientOptions) {
-
-		opts.RateLimit = 20
+		opts.RateLimit = 2 // requests per second
 	})
 	defer httpClient.Close()
 
-	client := NewApiClient(httpClient)
+	client := NewPostApiWrapper(httpClient)
 
 	// seed queue at a rate of 5 requests per second,
-	rl := ratelimit.New(30)
+	rl := ratelimit.New(5)
 	go func() {
-		for i := 0; i < 60; i++ {
+		for i := 0; i < 15; i++ {
 			rl.Take()
 			priority := http_client.Priority(rand.Intn(5-1) + 1)
 			entityId := rand.Intn(20-1) + 1

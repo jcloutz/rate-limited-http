@@ -1,4 +1,4 @@
-package http_client
+package rate_limited_http
 
 import (
 	"errors"
@@ -14,27 +14,27 @@ const (
 	Low       Priority = 4
 )
 
-// qItem is an element within the queue
-type qItem struct {
-	task     *apiTask
+// QItem is an element within the queue
+type QItem struct {
+	task     *ApiTask
 	priority Priority
 }
 
-// newQItem creates and returns a new qItem
-func newQItem(payload *apiTask, priority Priority) *qItem {
-	return &qItem{
+// NewQItem creates and returns a new QItem
+func NewQItem(payload *ApiTask, priority Priority) *QItem {
+	return &QItem{
 		task:     payload,
 		priority: priority,
 	}
 }
 
 // Priority gets the priority of them
-func (n *qItem) Priority() Priority {
+func (n *QItem) Priority() Priority {
 	return n.priority
 }
 
-// Task returns the items assigned apiTask
-func (n *qItem) Task() *apiTask {
+// Task returns the items assigned ApiTask
+func (n *QItem) Task() *ApiTask {
 	return n.task
 }
 
@@ -42,7 +42,7 @@ func (n *qItem) Task() *apiTask {
 // priority is calculated based on the current queue size for a given priority
 // its priority weight value
 type priorityQueue struct {
-	nodeHeap         map[Priority][]*qItem
+	nodeHeap         map[Priority][]*QItem
 	nextPriority     Priority
 	heapWeight       map[Priority]float64
 	heapWeightConfig map[Priority]float64
@@ -50,15 +50,15 @@ type priorityQueue struct {
 	mu               sync.Mutex
 }
 
-type priorityQueueOptions struct {
+type PriorityQueueOptions struct {
 	WeightImmediate float64
 	WeightHigh      float64
 	WeightMedium    float64
 	WeightLow       float64
 }
 
-func newPriorityQueue(optionFunc ...func(options *priorityQueueOptions)) *priorityQueue {
-	opts := priorityQueueOptions{
+func NewPriorityQueue(optionFunc ...func(options *PriorityQueueOptions)) *priorityQueue {
+	opts := PriorityQueueOptions{
 		WeightImmediate: 100,
 		WeightHigh:      0.8,
 		WeightMedium:    0.6,
@@ -70,7 +70,7 @@ func newPriorityQueue(optionFunc ...func(options *priorityQueueOptions)) *priori
 	}
 
 	return &priorityQueue{
-		nodeHeap:   make(map[Priority][]*qItem, 4),
+		nodeHeap:   make(map[Priority][]*QItem, 4),
 		heapWeight: make(map[Priority]float64, 4),
 		heapWeightConfig: map[Priority]float64{
 			Immediate: opts.WeightImmediate,
@@ -95,11 +95,11 @@ func (pq *priorityQueue) Empty() bool {
 	return pq.Len() == 0
 }
 
-// Push adds a new qItem into the queue based on priority
-func (pq *priorityQueue) Push(node *qItem) {
+// Push adds a new QItem into the queue based on priority
+func (pq *priorityQueue) Push(node *QItem) {
 	pq.mu.Lock()
 
-	// push qItem into appropriate heap
+	// push QItem into appropriate heap
 	pq.nodeHeap[node.Priority()] = append(pq.nodeHeap[node.Priority()], node)
 
 	// update the weighted value based on new length
@@ -116,14 +116,14 @@ func (pq *priorityQueue) Push(node *qItem) {
 
 // Pop removes the highest priority item from the queue based on its calculated
 // weighted priority
-func (pq *priorityQueue) Pop() (*qItem, error) {
+func (pq *priorityQueue) Pop() (*QItem, error) {
 	pq.mu.Lock()
 
 	if pq.length == 0 {
 		pq.mu.Unlock()
 		return nil, errors.New("queue pop failed, queue empty")
 	}
-	// grab the first qItem
+	// grab the first QItem
 	node := pq.nodeHeap[pq.nextPriority][0]
 
 	// shift the slice by 1

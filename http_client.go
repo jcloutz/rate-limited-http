@@ -1,7 +1,6 @@
-package http_client
+package rate_limited_http
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"time"
@@ -20,12 +19,12 @@ type QueuedHttpClient interface {
 	Close() error
 }
 
-type apiTask struct {
+type ApiTask struct {
 	Request *http.Request
-	Result  chan *apiTaskResult
+	Result  chan *ApiTaskResult
 }
 
-type apiTaskResult struct {
+type ApiTaskResult struct {
 	Result *http.Response
 	Err    error
 }
@@ -36,7 +35,7 @@ type httpClient struct {
 	client      *http.Client
 	rateLimiter ratelimit.Limiter
 	queue       *priorityQueue
-	tasks       chan *apiTask
+	tasks       chan *ApiTask
 	quitChan    chan bool
 }
 
@@ -70,13 +69,13 @@ func NewHttpClient(optionFunc ...func(options *HttpClientOptions)) *httpClient {
 	client := httpClient{
 		client:      opts.HttpClient,
 		rateLimiter: ratelimit.New(opts.RateLimit),
-		queue: newPriorityQueue(func(pqOpts *priorityQueueOptions) {
+		queue: NewPriorityQueue(func(pqOpts *PriorityQueueOptions) {
 			pqOpts.WeightImmediate = opts.WeightImmediate
 			pqOpts.WeightHigh = opts.WeightHigh
 			pqOpts.WeightMedium = opts.WeightMedium
 			pqOpts.WeightLow = opts.WeightLow
 		}),
-		tasks:    make(chan *apiTask, opts.WorkQueueMaxSize),
+		tasks:    make(chan *ApiTask, opts.WorkQueueMaxSize),
 		quitChan: make(chan bool, 1),
 	}
 
@@ -93,7 +92,6 @@ func (h *httpClient) start() {
 			if !h.queue.Empty() {
 				apiTask, _ := h.queue.Pop()
 				// send to work channel
-				fmt.Println(fmt.Sprintf(`[P%d]EXEC: method=%s`, apiTask.Priority(), apiTask.Task().Request.Method))
 				h.tasks <- apiTask.Task()
 
 			}
@@ -104,7 +102,7 @@ func (h *httpClient) start() {
 				res, err := h.client.Do(work.Request)
 
 				// write to api task result channel to unblock caller
-				work.Result <- &apiTaskResult{
+				work.Result <- &ApiTaskResult{
 					Result: res,
 					Err:    err,
 				}
@@ -130,20 +128,20 @@ func (h *httpClient) Close() error {
 // enqueue will convert the uri and priority into an ApiAtask and queue it. A thunk
 // is returned to the caller
 func (h *httpClient) enqueue(request *http.Request, priority Priority) (*http.Response, error) {
-	task := apiTask{
+	task := ApiTask{
 		Request: request,
-		Result:  make(chan *apiTaskResult),
+		Result:  make(chan *ApiTaskResult),
 	}
-	node := newQItem(&task, priority)
+	node := NewQItem(&task, priority)
 	//wr := WorkRequest{Uri: uri, Result: make(chan io.Reader), Priority: priority}
 	h.queue.Push(node)
 
 	return h.loadThunk(&task)()
 }
 
-// loadThunk takes the result returned from the Result channel of the apiTask
+// loadThunk takes the result returned from the Result channel of the ApiTask
 // and returns it to the calling function
-func (h *httpClient) loadThunk(request *apiTask) func() (*http.Response, error) {
+func (h *httpClient) loadThunk(request *ApiTask) func() (*http.Response, error) {
 	return func() (*http.Response, error) {
 		res := <-request.Result
 
